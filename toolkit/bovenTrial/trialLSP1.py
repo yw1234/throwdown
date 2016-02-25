@@ -15,7 +15,7 @@ p = json.dumps(r.json())
 lsp_list = json.loads(p)
 
 for lsp in lsp_list:
-        if lsp['name'] == 'GROUP_EIGHT_SF_NY_LSP3':
+        if lsp['name'] == 'GROUP_EIGHT_NY_SF_LSP3':
             break
 
 new_lsp = {}
@@ -26,11 +26,15 @@ new_lsp['lspIndex'] = lsp['lspIndex']
 new_lsp['pathType'] = lsp['pathType']
 new_lsp['plannedProperties'] = {}
 new_lsp['plannedProperties']['ero'] = [
-        { 'topoObjectType': 'ipv4', 'address': "10.210.18.2"},
-        { 'topoObjectType': 'ipv4', 'address': "10.210.19.1"},
-        { 'topoObjectType': 'ipv4', 'address': "10.210.21.2"},
-        { 'topoObjectType': 'ipv4', 'address': "10.210.22.1"},
-        { 'topoObjectType': 'ipv4', 'address': "10.210.12.2"}
+#        { 'topoObjectType': 'ipv4', 'address': "10.210.18.2"},
+#        { 'topoObjectType': 'ipv4', 'address': "10.210.19.1"},
+#        { 'topoObjectType': 'ipv4', 'address': "10.210.21.2"},
+#        { 'topoObjectType': 'ipv4', 'address': "10.210.22.1"},
+#        { 'topoObjectType': 'ipv4', 'address': "10.210.12.2"}
+        { 'topoObjectType': 'ipv4', 'address': "10.210.26.2"},
+        { 'topoObjectType': 'ipv4', 'address': "10.210.25.1"},
+        { 'topoObjectType': 'ipv4', 'address': "10.210.20.1"},
+        { 'topoObjectType': 'ipv4', 'address': "10.210.18.1"}
     ]
 
 response = requests.put('https://10.10.2.25:8443/NorthStar/API/v1/tenant/1/topology/1/te-lsps/'
