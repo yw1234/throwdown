@@ -44,9 +44,12 @@ function onMousePressed() {
 // Visualization of topology in a Wide Area Network
 function setup() {
 	// creat canvas
-	width = 1280;
-	height = 720;
-	canvas = createCanvas(width, height);
+	const canvasHolder = select('#topo-main'),
+	      width = canvasHolder.width,
+	      height = canvasHolder.height;
+	console.log(width);
+	console.log(height);
+	canvas = createCanvas(width, height).parent('topo-main');
 	canvas.mousePressed(onMousePressed);
 
 	// set frame rate as 25 fps
