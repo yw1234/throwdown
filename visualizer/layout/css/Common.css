@@ -13,6 +13,7 @@ body {
 .layout-main .jumbotron{
     background-color: transparent;
     padding:0px;
+    height: 80%;
 }
 
 #app-main{display: none;}
