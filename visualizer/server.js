@@ -159,7 +159,7 @@ io.sockets.on('connection',
 								headers: header
 							}).on('complete', function(data) {
 								for (var i = 0; i < 88; i++) {
-									if (data[i].name.includes("GROUP_EIGHT")) {
+									if (data[i].name.includes("GROUP_ELEVEN")) {
 										// console.log(data[i].liveProperties.ero);
 										var lsp = {
 											id: data[i].lspIndex,
