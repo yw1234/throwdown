@@ -8,8 +8,9 @@ from ryu.lib.packet import ethernet
 from ryu.lib.packet import arp
 from ryu.lib.packet import ipv4, tcp, udp, icmp
 from ryu.lib.packet import ether_types
-import multiprocessing
-import randint
+from multiprocessing import Process
+from time import sleep
+import random
 import copy
 
 class SimpleSwitch(app_manager.RyuApp):
@@ -33,9 +34,8 @@ class SimpleSwitch(app_manager.RyuApp):
         self.vBundle_info = ["192.168.5.2", "192.168.5.1", 2]
 
         self.lsp_rules = []  # recording the associated flow for each lsp
-        lsp_rules.append({})  # [cookie : [rule]]
-        lsp_rules.append({})  # [cookie : [rule]]
-
+        self.lsp_rules.append({})  # [cookie : [rule]]
+        self.lsp_rules.append({})  # [cookie : [rule]]
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -49,10 +49,15 @@ class SimpleSwitch(app_manager.RyuApp):
         actions = [datapath.ofproto_parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
         # match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_ARP)
         match = datapath.ofproto_parser.OFPMatch()
-        self.add_flow(datapath, match, actions, 0)
+        self.add_flow(datapath, match, actions, 0, 1)
 
         if dpid == 82 or dpid == 81:    # record datapath
-            self.datapaths[dpid] = dapapath
+            self.datapaths[dpid] = datapath
+
+        #trial_process = Process(target=self.lsp_failover, args=(0, 1))
+        # trial_process.start()
+
+        print "default ready"
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -64,6 +69,9 @@ class SimpleSwitch(app_manager.RyuApp):
         eth = pkt.get_protocol(ethernet.ethernet)
         in_port = msg.in_port
 
+        if not eth:
+            return 
+
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
@@ -73,7 +81,7 @@ class SimpleSwitch(app_manager.RyuApp):
             pkt_arp = pkt.get_protocol(arp.arp)
             self._handle_arp(datapath, in_port, eth, pkt_arp)
 
-        # handle ip
+        # handle id
         if eth.ethertype == ether_types.ETH_TYPE_IP:
             ip_pkt = pkt.get_protocol(ipv4.ipv4)
 
@@ -90,24 +98,29 @@ class SimpleSwitch(app_manager.RyuApp):
             else: # icmp
                 self.handle_ip(datapath.id, ip_pkt.proto, None, None, 0)
 
-            self.packet_out(datapath, msg.data, in_port, self.vBundle_info[0])
+            self.packet_out(datapath, msg.data, msg.in_port, self.vBundle_info[2])
 
-    def lsp_failover(orig_lsp, new_lsp):
-        for cookie in lsp_rules[orig_lsp]:
+    def lsp_failover(self, orig_lsp, new_lsp):
+        sleep(20)
+        print "start deleting + new: " + str(new_lsp)
+        print self.lsp_rules
+        for cookie in self.lsp_rules[orig_lsp]:
+            print cookie
             self.del_flow(cookie)
 
-            orig_rule = lsp_rules[orig_lsp][cookie]
+            orig_rule = self.lsp_rules[orig_lsp][cookie]
+            print orig_rule
             self.handle_ip(orig_rule[0], orig_rule[1], orig_rule[2],
                            orig_rule[3], new_lsp)
 
-        lsp_rules[orig_lsp].clear()
+        self.lsp_rules[orig_lsp].clear()
 
-    def flow_migration(cookie, orig_lsp, new_lsp):
+    def flow_migration(self, cookie, orig_lsp, new_lsp):
         self.del_flow(cookie)
-        orig_rule = lsp_rules[orig_lsp]
+        orig_rule = self.lsp_rules[orig_lsp]
         self.handle_ip(orig_rule[0], orig_rule[1], orig_rule[2],
                        orig_rule[3], new_lsp)
-        del lsp_rules[cookie]
+        del self.lsp_rules[cookie]
 
     def _handle_arp(self, datapath, port, eth, pkt_arp):
         ofproto = datapath.ofproto
@@ -136,21 +149,21 @@ class SimpleSwitch(app_manager.RyuApp):
                                    actions=actions, data=data)
         datapath.send_msg(out)
 
-    def handle_ip(self, dpid, proto, sPort=None, dPort=None, lsp_id):
+    def handle_ip(self, dpid, proto, sPort=None, dPort=None, lsp_id=0):
         if (sPort is None):
             cookie = random.randint(1,65535)
         else:
             cookie = sPort * 65536 + dPort
         
-        lsp_rules[lsp_id][cookie] = [dpid, proto, sPort, dPort]
+        self.lsp_rules[lsp_id][cookie] = [dpid, proto, sPort, dPort]
 
         if (dpid == 82):  # in from west
             # handle west
-            datapath = datapaths[82]
-            match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
-                                                     nw_proto=proto, tp_src=sPort,
-                                                     tp_dst=dPort,
-                                                     in_port=vBundle_info[2])
+            datapath = self.datapaths[82]
+            parser = datapath.ofproto_parser
+            match = parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                    nw_proto=proto, tp_src=sPort,
+                                    tp_dst=dPort, in_port=self.vBundle_info[2])
             
             nat_src = self.path_info[lsp_id][0]
             nat_dst = self.path_info[lsp_id][1]
@@ -158,17 +171,16 @@ class SimpleSwitch(app_manager.RyuApp):
                        parser.OFPActionSetDlSrc(self.arptable[nat_src]),
                        parser.OFPActionSetNwDst(nat_dst),
                        parser.OFPActionSetDlDst(self.arptable[nat_dst]),
-                       parser.OFPActionOutput(self.path[lsp_id][2])]
+                       parser.OFPActionOutput(self.path_info[lsp_id][2])]
 
             self.add_flow(datapath, match, actions, cookie)
 
-
             # handle east
-            datapath = datapaths[81]
-            match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
-                                                     nw_proto=proto, tp_src=sPort,
-                                                     tp_dst=dPort,
-                                                     in_port=self.path_info[lsp_id][2])
+            datapath = self.datapaths[81]
+            parser = datapath.ofproto_parser
+            match = parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                    nw_proto=proto, tp_src=sPort,
+                                    tp_dst=dPort, in_port=self.path_info[lsp_id][2])
 
             nat_src = self.vBundle_info[0]
             nat_dst = self.vBundle_info[1]
@@ -182,11 +194,11 @@ class SimpleSwitch(app_manager.RyuApp):
 
         elif (dpid == 81):   # in from east
             # handle east
-            datapah = datapaths[81]
-            match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
-                                                     nw_proto=proto, tp_src=sPort,
-                                                     tp_dst=dPort,
-                                                     in_port=vBundle_info[2])
+            datapath = self.datapaths[81]
+            parser = datapath.ofproto_parser
+            match = parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                    nw_proto=proto, tp_src=sPort,
+                                    tp_dst=dPort, in_port=self.vBundle_info[2])
 
             nat_src = self.path_info[lsp_id][1]
             nat_dst = self.path_info[lsp_id][0]
@@ -194,19 +206,19 @@ class SimpleSwitch(app_manager.RyuApp):
                        parser.OFPActionSetDlSrc(self.arptable[nat_src]),
                        parser.OFPActionSetNwDst(nat_dst),
                        parser.OFPActionSetDlDst(self.arptable[nat_dst]),
-                       parser.OFPActionOutput(self.path[lsp_id][2])]
+                       parser.OFPActionOutput(self.path_info[lsp_id][2])]
 
             self.add_flow(datapath, match, actions, cookie)
 
             # handle east
-            datapath = datapaths[82]
-            match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
-                                                     nw_proto=proto, tp_src=sPort,
-                                                     tp_dst=dPort,
-                                                     in_port=self.path_info[lsp_id][2])
+            datapath = self.datapaths[82]
+            parser = datapath.ofproto_parser
+            match = parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                    nw_proto=proto, tp_src=sPort,
+                                    tp_dst=dPort, in_port=self.path_info[lsp_id][2])
 
-            nat_src = self.vBundle_info[0]
-            nat_dst = self.vBundle_info[1]
+            nat_src = self.vBundle_info[1]
+            nat_dst = self.vBundle_info[0]
             actions = [parser.OFPActionSetNwSrc(nat_src),
                        parser.OFPActionSetDlSrc(self.arptable[nat_src]),
                        parser.OFPActionSetNwDst(nat_dst),
@@ -214,31 +226,40 @@ class SimpleSwitch(app_manager.RyuApp):
                        parser.OFPActionOutput(self.vBundle_info[2])]
 
             self.add_flow(datapath, match, actions, cookie)
-            
+
+        print "flow ready"
 
     def add_flow(self, datapath, match, actions, cookie=0, priority=100):
         ofproto = datapath.ofproto
         mod = datapath.ofproto_parser.OFPFlowMod(
-            datapath=datapath, match=match, cookie=0,
+            datapath=datapath, match=match,
             command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
-            priority=100,
+            priority=priority,
             flags=ofproto.OFPFF_SEND_FLOW_REM, actions=actions, cookie=cookie)
         datapath.send_msg(mod)
 
     def del_flow(self, cookie):
-        datapath = datapaths[81]
+        datapath = self.datapaths[81]
         ofproto = datapath.ofproto
         mod = datapath.ofproto_parser.OFPFlowMod(
             datapath=datapath, cookie=cookie,
             command=ofproto.OFPFC_DELETE, out_port=ofproto.OFPP_ANY,
             out_group=ofproto.OFPG_ANY)
-        datapath = datapaths[82]
+        datapath.send_msg(mod)
 
-    def packet_out(datapath, data, in_port, out_port):
+        datapath = self.datapaths[82]
+        mod = datapath.ofproto_parser.OFPFlowMod(
+            datapath=datapath, cookie=cookie,
+            command=ofproto.OFPFC_DELETE, out_port=ofproto.OFPP_ANY,
+            out_group=ofproto.OFPG_ANY)
+        datapath.send_msg(mod)
+
+    def packet_out(self, datapath, data, in_port, out_port):
         actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+
         out = datapath.ofproto_parser.OFPPacketOut(
             datapath=datapath, buffer_id=datapath.ofproto.OFP_NO_BUFFER,
-            in_port=in_port, actions, data=data)
+            in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
 
 """  Obsolete
