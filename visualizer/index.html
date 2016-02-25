@@ -1,9 +1,64 @@
 <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ThrowDown</title>
+
+  <!--UI CSS-->
+  <link href="layout/css/bootstrap.min.css" rel="stylesheet">
+  <link href="layout/css/todc-bootstrap.min.css" rel="stylesheet">
+  <link href="layout/css/Common.css" rel="stylesheet">
+
   <!-- <script language="javascript" type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/p5.js/0.2.8/p5.min.js"></script> -->
   <script language="javascript" type="text/javascript" src="libraries/p5.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script language="javascript" type="text/javascript" src="sketch.js"></script>
+
+  <!--UI JS-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="layout/js/bootstrap.min.js"></script>
+  <script src="layout/js/Common.js"></script>
 </head>
 
 <body>
+<div class="container">
+
+  <nav class="navbar navbar-toolbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">ThrowDown</a>
+      </div>
+      <div id="navbar" class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li id="topo-btn" class="active"><a href="#">Topology</a></li>
+          <li id="app-btn"><a href="#">Application</a></li>
+        </ul>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main component -->
+  <div class="layout-main">
+
+    <div id="topo-main" class = "jumbotron">
+
+    </div>
+
+    <div id="app-main" class = "jumbotron">
+
+    </div>
+  </div>
+
+
+
+
+</div>
 </body>
