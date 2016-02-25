@@ -184,7 +184,7 @@ io.sockets.on('connection',
 		// listen to disconnet information
 		socket.on('disconnet', function () {
 			console.log("Client has disconnected");
-		})
+		})；
 	}
 );
 

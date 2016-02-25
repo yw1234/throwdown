@@ -111,13 +111,13 @@ function draw() {
 	for (var i = 0; i < lsps.length; i++) {
 		// console.log(colors);
 		stroke(colors[i]);
-		strokeWeight(4);
+		strokeWeight(2);
 		for (var j = 0; j < lsps[i].links.length; j++) {
 			line(
-				nodes[links[lsps[i].links[j]].endA-1].x+i,
-				nodes[links[lsps[i].links[j]].endA-1].y+i,
-				nodes[links[lsps[i].links[j]].endZ-1].x+i,
-				nodes[links[lsps[i].links[j]].endZ-1].y+i);
+				nodes[links[lsps[i].links[j]].endA-1].x+i*2,
+				nodes[links[lsps[i].links[j]].endA-1].y+i*2,
+				nodes[links[lsps[i].links[j]].endZ-1].x+i*2,
+				nodes[links[lsps[i].links[j]].endZ-1].y+i*2);
 		}
 	}
 }
