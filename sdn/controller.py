@@ -9,12 +9,14 @@ from ryu.lib.packet import arp
 from ryu.lib.packet import ipv4, tcp, udp, icmp
 from ryu.lib.packet import ether_types
 from multiprocessing import Process
+from ryu.app import event_message
 from time import sleep
 import random
 import copy
 
 class SimpleSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
+    _EVENTS = [event_message.EventMessage]
 
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch, self).__init__(*args, **kwargs)
@@ -37,6 +39,9 @@ class SimpleSwitch(app_manager.RyuApp):
         self.lsp_rules.append({})  # [cookie : [rule]]
         self.lsp_rules.append({})  # [cookie : [rule]]
 
+        trial_process = Process(target=self.lsp_failover, args=(0, 1))
+        trial_process.start()
+
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         msg = ev.msg
@@ -54,8 +59,6 @@ class SimpleSwitch(app_manager.RyuApp):
         if dpid == 82 or dpid == 81:    # record datapath
             self.datapaths[dpid] = datapath
 
-        #trial_process = Process(target=self.lsp_failover, args=(0, 1))
-        # trial_process.start()
 
         print "default ready"
 
@@ -100,20 +103,20 @@ class SimpleSwitch(app_manager.RyuApp):
 
             self.packet_out(datapath, msg.data, msg.in_port, self.vBundle_info[2])
 
-    def lsp_failover(self, orig_lsp, new_lsp):
-        sleep(20)
-        print "start deleting + new: " + str(new_lsp)
+    @set_ev_cls(event_message.EventMessage)
+    def lsp_failover(self, ev):
+        print "start deleting + new: " + str(ev.new_lsp)
         print self.lsp_rules
-        for cookie in self.lsp_rules[orig_lsp]:
+        for cookie in self.lsp_rules[ev.orig_lsp]:
             print cookie
             self.del_flow(cookie)
 
-            orig_rule = self.lsp_rules[orig_lsp][cookie]
+            orig_rule = self.lsp_rules[ev.orig_lsp][cookie]
             print orig_rule
             self.handle_ip(orig_rule[0], orig_rule[1], orig_rule[2],
-                           orig_rule[3], new_lsp)
+                           orig_rule[3], ev.new_lsp)
 
-        self.lsp_rules[orig_lsp].clear()
+        self.lsp_rules[ev.orig_lsp].clear()
 
     def flow_migration(self, cookie, orig_lsp, new_lsp):
         self.del_flow(cookie)
@@ -156,6 +159,7 @@ class SimpleSwitch(app_manager.RyuApp):
             cookie = sPort * 65536 + dPort
         
         self.lsp_rules[lsp_id][cookie] = [dpid, proto, sPort, dPort]
+        print self.lsp_rules
 
         if (dpid == 82):  # in from west
             # handle west
