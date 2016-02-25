@@ -3,7 +3,6 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_0
-from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import arp
@@ -23,7 +22,34 @@ class SimpleSwitch(app_manager.RyuApp):
         self.arptable["192.168.4.1"] = "00:50:56:8d:2e:7c"
         self.arptable["192.168.4.2"] = "00:50:56:8d:df:4f"
 
-        net_state_ev = multiprocessing.Event()
+        self.datapaths = {}
+
+        self.flowpath = []
+        flowpath.append(["192.168.3.1", "192.168.3.2"])
+        flowpath.append(["192.168.4.1", "192.168.4.2"])
+
+    def add_flow(self, datapath, match, actions):
+        ofproto = datapath.ofproto
+        mod = datapath.ofproto_parser.OFPFlowMod(
+            datapath=datapath, match=match, cookie=0,
+            command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
+            priority=ofproto.OFP_DEFAULT_PRIORITY,
+            flags=ofproto.OFPFF_SEND_FLOW_REM, actions=actions)
+        datapath.send_msg(mod)
+
+    def add_flow_path(self, proto, wPort, ePort, lsp_id):
+        # handle west
+        datapath = datapaths[82]
+        match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                                 proto, tp_src=wPort,
+                                                 tp_dst=ePort, in_port=2)
+        actions = [parser.OFPActionSetNwSrc(self.flowpath[lsp_id]),
+                   parser.OFPActionSetDlSrc(self.arptable["192.168.5.1"]),
+                   parser.OFPActionSetNwDst("192.168.5.2"),
+                   parser.OFPActionSetDlDst(self.arptable["192.168.5.2"]),
+                   parser.OFPActionOutput(2)]
+        self.add_flow(datapath, match, actions)
+        # handle east
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -33,9 +59,13 @@ class SimpleSwitch(app_manager.RyuApp):
         parser = datapath.ofproto_parser
         dpid = datapath.id
         actions = [datapath.ofproto_parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
-        match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_ARP)
-        # default only fwd arp
+        # match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_ARP)
+        match = datapath.ofproto_parser.OFPMatch()
+        # default fwd everything
         self.add_flow(datapath, match, actions)
+
+        if dpid == 82 or dpid == 81:
+            self.datapaths[dpid] = dapapath
         # test
         print datapath.id
         if dpid == 82:  # west switch
@@ -94,7 +124,7 @@ class SimpleSwitch(app_manager.RyuApp):
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
-        
+
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
             self._handle_arp(datapath, in_port, eth, pkt_arp)
 
@@ -106,11 +136,9 @@ class SimpleSwitch(app_manager.RyuApp):
             return
         pkt = packet.Packet()
 
-        self.logger.info("arp reqest packet in dpid src dst port %s %s %s %s", datapath.id, eth.src, eth.dst, port)
-
         if pkt_arp.dst_ip in self.arptable:
            fin_src_mac = self.arptable[pkt_arp.dst_ip]
-        
+
         pkt.add_protocol(ethernet.ethernet(ethertype=eth.ethertype, dst=eth.src,
                                            src=fin_src_mac))
         pkt.add_protocol(arp.arp(opcode=arp.ARP_REPLY,
