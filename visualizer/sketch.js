@@ -40,10 +40,14 @@ var colors = [
 'rgba(254,179,0,0.5)',
 'rgba(226,119,32,0.5)'
 ];
+var northStarUpdate = 0;
 
 // Visualization of topology in a Wide Area Network
 function setup() {
-	createCanvas(1280, 760);
+	createCanvas(1280, 720);
+	frameRate(25);
+
+	// Establish socket between browser and server
 	socket = io.connect('http://localhost:8080');
 	socket.emit('northstar');
 
@@ -55,23 +59,36 @@ function setup() {
 		nodes = data;
 		for (var i = 0; i < 8; i++) {
 			nodes[i].x = map(nodes[i].longtitude, -130, -70, 0, 1280);
-			nodes[i].y = map(-nodes[i].latitude, -45, -25, 0, 760);
+			nodes[i].y = map(-nodes[i].latitude, -45, -25, 0, 720);
 		}
 		// console.log(nodes);
+		console.log('New nodes information received');
 	});
 
 	socket.on('links', function(data) {
 		// console.log(data);
 		links = data;
+		console.log('New links information received');
 	})
 
 	socket.on('lsps', function(data) {
 		// console.log(data);
 		lsps = data
+		console.log('New LSPs information received');
 	})
 }
 
 function draw() {
+
+	if (nodes.length == 8 && links.length == 15 && lsps.length == 8) {
+		if (northStarUpdate < 75) {
+			northStarUpdate++;
+		} else {
+			socket.emit('northstar');
+			northStarUpdate = 0;
+		}
+	}
+
 	background(255);
 
 	// Links
