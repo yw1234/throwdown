@@ -8,7 +8,7 @@ from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import arp
 from ryu.lib.packet import ether_types
-
+import multiprocessing
 
 class SimpleSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
@@ -23,14 +23,7 @@ class SimpleSwitch(app_manager.RyuApp):
         self.arptable["192.168.4.1"] = "00:50:56:8d:2e:7c"
         self.arptable["192.168.4.2"] = "00:50:56:8d:df:4f"
 
-    def add_flow(self, datapath, match, actions):
-        ofproto = datapath.ofproto
-        mod = datapath.ofproto_parser.OFPFlowMod(
-            datapath=datapath, match=match, cookie=0,
-            command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
-            priority=ofproto.OFP_DEFAULT_PRIORITY,
-            flags=ofproto.OFPFF_SEND_FLOW_REM, actions=actions)
-        datapath.send_msg(mod)
+        net_state_ev = multiprocessing.Event()
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -133,3 +126,12 @@ class SimpleSwitch(app_manager.RyuApp):
                                    in_port = ofproto.OFPP_CONTROLLER,
                                    actions=actions, data=data)
         datapath.send_msg(out)
+
+    def add_flow(self, datapath, match, actions):
+        ofproto = datapath.ofproto
+        mod = datapath.ofproto_parser.OFPFlowMod(
+            datapath=datapath, match=match, cookie=0,
+            command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
+            priority=ofproto.OFP_DEFAULT_PRIORITY,
+            flags=ofproto.OFPFF_SEND_FLOW_REM, actions=actions)
+        datapath.send_msg(mod)
