@@ -163,7 +163,7 @@ io.sockets.on('connection',
 										// console.log(data[i].liveProperties.ero);
 										var lsp = {
 											id: data[i].lspIndex,
-											name: data[i].name,
+											name: data[i].name.replace(/_/g," "),
 											links: findLinks(data[i].liveProperties.ero)
 										};
 										lsps.push(lsp);
@@ -184,7 +184,7 @@ io.sockets.on('connection',
 		// listen to disconnet information
 		socket.on('disconnet', function () {
 			console.log("Client has disconnected");
-		})
+		});
 	}
 );
 
