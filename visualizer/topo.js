@@ -20,6 +20,7 @@ var colors = [
 
 // counter for northstar update
 var northStarUpdate = 0;
+var redisUpdate = 0;
 
 // size of canvas
 var width;
@@ -47,8 +48,8 @@ function setup() {
 	const canvasHolder = select('#topo-main'),
 	      width = canvasHolder.width,
 	      height = canvasHolder.height;
-	console.log(width);
-	console.log(height);
+	// console.log(width);
+	// console.log(height);
 	canvas = createCanvas(width, height).parent('topo-main');
 	canvas.mousePressed(onMousePressed);
 
@@ -62,7 +63,7 @@ function setup() {
 			r: width*0.82+width*0.07,
 			u: height*0.3+height*0.2*i,
 			b: height*0.3+height*0.2*i+height*0.1,
-			show: true
+			show: false
 		}
 		buttons.push(button);
 	}
@@ -73,7 +74,7 @@ function setup() {
 			r: width*0.91+width*0.07,
 			u: height*0.3+height*0.2*i,
 			b: height*0.3+height*0.2*i+height*0.1,
-			show: true
+			show: false
 		}
 		buttons.push(button);
 	}
@@ -111,29 +112,42 @@ function setup() {
 
 function draw() {
 
-	// counting whether to update northstar informations
+	// counting whether to update northstar informations && redis information
 	if (nodes.length == 8 && links.length == 15 && lsps.length == 8) {
 		if (northStarUpdate < 75) {
 			northStarUpdate++;
 		} else {
-			socket.emit('northstar');
+			socket.emit('northstar_update');
 			northStarUpdate = 0;
+		}
+
+		if (redisUpdate < 750) {
+			redisUpdate++;
+		} else {
+			socket.emit('redis_update');
+			redisUpdate = 0;
 		}
 	}
 
 	background(255);
 
 	// Links
-	stroke(200);
-	strokeWeight(1);
 	for (var i = 0; i < links.length; i++) {
 		// console.log('drawing links');
 		// console.log(links[i]);
-		line(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y);
+		stroke(230,230,230);
+		strokeWeight(5);
+		line(nodes[links[i].endA-1].x+3, nodes[links[i].endA-1].y+3, nodes[links[i].endZ-1].x+3, nodes[links[i].endZ-1].y+3);
+		line(nodes[links[i].endA-1].x-3, nodes[links[i].endA-1].y-3, nodes[links[i].endZ-1].x-3, nodes[links[i].endZ-1].y-3);
+		stroke('rgba(0,0,0,0.5)');
+		strokeWeight(5*links[i].utilA2Z);
+		line(nodes[links[i].endA-1].x+3, nodes[links[i].endA-1].y+3, nodes[links[i].endZ-1].x+3, nodes[links[i].endZ-1].y+3);
+		line(nodes[links[i].endA-1].x-3, nodes[links[i].endA-1].y-3, nodes[links[i].endZ-1].x-3, nodes[links[i].endZ-1].y-3);
 	}
 
 	// Nodes
 	stroke(50);
+	strokeWeight(1);
 	for (var i = 0; i < nodes.length; i++) {
 		fill(100);
 		ellipse(nodes[i].x, nodes[i].y, 25, 25);
