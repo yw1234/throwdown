@@ -1,0 +1,19 @@
+body {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.navbar-toolbar {
+    margin-bottom: 20px;
+}
+
+.layout-main{
+}
+
+.layout-main .jumbotron{
+    background-color: transparent;
+    padding:0px;
+    height: 80%;
+}
+
+#app-main{display: none;}
