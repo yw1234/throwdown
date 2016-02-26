@@ -41,7 +41,7 @@ class SimpleSwitch(app_manager.RyuApp):
         self.lsp_rules.append({})  # [cookie : [rule]]
         self.lsp_rules.append({})  # [cookie : [rule]]
 
-        db = db_api()
+        self.db = db_api()
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -52,11 +52,17 @@ class SimpleSwitch(app_manager.RyuApp):
         dpid = datapath.id
 
         # default fwd everything to controller
-        actions = [datapath.ofproto_parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
-        # match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_ARP)
         match = datapath.ofproto_parser.OFPMatch()
-        self.add_flow(datapath, match, actions, 0, 1)
+        actions = [datapath.ofproto_parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
+        self.add_flow(datapath, match, actions, 0, 0)
 
+        # have all the icmp go normal
+        """
+        match = datapath.ofproto_parser.OFPMatch(dl_type=ether_types.ETH_TYPE_IP,
+                                                 nw_proto=1)
+        actions = [datapath.ofproto_parser.OFPActionOutput(ofproto.OFPP_NORMAL)]
+        self.add_flow(datapath, match, actions, 0, 1)
+        """
         if dpid == 82 or dpid == 81:    # record datapath
             self.datapaths[dpid] = datapath
 
@@ -91,19 +97,22 @@ class SimpleSwitch(app_manager.RyuApp):
             # get healthest lsp
             if (ip_pkt.proto == 6):  # tcp
                 tcp_pkt = pkt.get_protocol(tcp.tcp)
-                self.handle_ip(datapath.id, ip_pkt.proto, tcp_pkt.src_port,
-                               tcp_pkt.dst_port, db.get_healthest_lsp())
+                self.handle_ip(datapath.id, ip_pkt.proto,
+                               tcp_pkt.src_port, tcp_pkt.dst_port,
+                               self.db.get_healthest_lsp())
 
             elif(ip_pkt.proto == 17):  # udp
                 udp_pkt = pkt.get_protocol(udp.udp)
-                self.handle_ip(datapath.id, ip_pkt.proto, udp_pkt.src_port,
-                               udp_pkt.dst_port, db.get_healthest_lsp())
+                self.handle_ip(datapath.id, ip_pkt.proto,
+                               udp_pkt.src_port, udp_pkt.dst_port,
+                               self.db.get_healthest_lsp())
 
             else: # icmp
                 self.handle_ip(datapath.id, ip_pkt.proto, None, None,
-                              db.get_healthest_lsp())
+                               self.db.get_healthest_lsp())
 
-            self.packet_out(datapath, msg.data, msg.in_port, self.vBundle_info[2])
+            self.packet_out(datapath, msg.data, msg.in_port,
+                            self.vBundle_info[2])
 
     @set_ev_cls(event_message.EventMessage)
     def lsp_failover(self, ev):
