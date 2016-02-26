@@ -42,6 +42,24 @@ function onMousePressed() {
 	}
 }
 
+function arrow(x1, y1, x2, y2, length) {
+	var angle = atan2(y2-y1, x2-x1);
+	// console.log(angle + " from (" + x1 + "," + y1 + ") to (" + x2 + "," + y2 + ")");
+	push();
+	translate(x1,y1);
+	rotate(angle);
+	beginShape();
+	vertex(0,-2);
+	vertex(5*length,-2);
+	vertex(5*length,-6);
+	vertex(9*length,0);
+	vertex(5*length,6);
+	vertex(5*length,2);
+	vertex(0,2);
+	endShape(CLOSE);
+	pop();
+}
+
 // Visualization of topology in a Wide Area Network
 function setup() {
 	// creat canvas
@@ -84,7 +102,7 @@ function setup() {
 	socket.emit('northstar');
 
 	socket.on('welcome', function(data) {
-		console.log(data.welcome);
+		// console.log(data.welcome);
 	});
 
 	socket.on('nodes', function(data) {
@@ -94,19 +112,19 @@ function setup() {
 			nodes[i].y = map(-nodes[i].latitude, -45, -25, 0, height);
 		}
 		// console.log(nodes);
-		console.log('New nodes information received');
+		// console.log('New nodes information received');
 	});
 
 	socket.on('links', function(data) {
 		// console.log(data);
 		links = data;
-		console.log('New links information received');
+		// console.log('New links information received');
 	})
 
 	socket.on('lsps', function(data) {
 		// console.log(data);
 		lsps = data
-		console.log('New LSPs information received');
+		// console.log('New LSPs information received');
 	})
 }
 
@@ -137,12 +155,20 @@ function draw() {
 		// console.log(links[i]);
 		stroke(230,230,230);
 		strokeWeight(5);
-		line(nodes[links[i].endA-1].x+3, nodes[links[i].endA-1].y+3, nodes[links[i].endZ-1].x+3, nodes[links[i].endZ-1].y+3);
-		line(nodes[links[i].endA-1].x-3, nodes[links[i].endA-1].y-3, nodes[links[i].endZ-1].x-3, nodes[links[i].endZ-1].y-3);
+		line(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y+5, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y+5);
+		line(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y-5, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y-5);
 		stroke('rgba(0,0,0,0.5)');
 		strokeWeight(5*links[i].utilA2Z);
-		line(nodes[links[i].endA-1].x+3, nodes[links[i].endA-1].y+3, nodes[links[i].endZ-1].x+3, nodes[links[i].endZ-1].y+3);
-		line(nodes[links[i].endA-1].x-3, nodes[links[i].endA-1].y-3, nodes[links[i].endZ-1].x-3, nodes[links[i].endZ-1].y-3);
+		line(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y+5, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y+5);
+		fill('rgba(0,0,0,'+links[i].utilA2Z+')');
+		noStroke();
+		arrow(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y+5, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y+5, 10);
+		stroke('rgba(0,0,0,0.5)');
+		strokeWeight(5*links[i].utilZ2A);
+		line(nodes[links[i].endA-1].x, nodes[links[i].endA-1].y-5, nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y-5);
+		fill('rgba(0,0,0,'+links[i].utilZ2A+')');
+		noStroke();
+		arrow(nodes[links[i].endZ-1].x, nodes[links[i].endZ-1].y-5, nodes[links[i].endA-1].x, nodes[links[i].endA-1].y-5, 10);
 	}
 
 	// Nodes
@@ -161,13 +187,13 @@ function draw() {
 	for (var i = 0; i < lsps.length; i++) {
 		// console.log(colors);
 		if (buttons[i].show) {
-			stroke(colors[i]);
-			strokeWeight(4);
 			for (var j = 0; j < lsps[i].links.length; j++) {
+				stroke(colors[i]);
+				strokeWeight(4);
 				line(
-					nodes[links[lsps[i].links[j]].endA-1].x+i*2,
+					nodes[links[lsps[i].links[j]].endA-1].x,
 					nodes[links[lsps[i].links[j]].endA-1].y+i*2,
-					nodes[links[lsps[i].links[j]].endZ-1].x+i*2,
+					nodes[links[lsps[i].links[j]].endZ-1].x,
 					nodes[links[lsps[i].links[j]].endZ-1].y+i*2);
 			}
 		}
